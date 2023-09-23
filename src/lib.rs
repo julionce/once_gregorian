@@ -42,6 +42,10 @@ impl Date {
     pub fn day_of_month(&self) -> DayOfMonth {
         self.day
     }
+
+    pub fn is_leap_year(&self) -> bool {
+        (0 == self.year % 4) && (0 != (self.year % 100) || 0 == (self.year % 400))
+    }
 }
 
 #[cfg(test)]
@@ -58,5 +62,27 @@ mod tests {
     fn create_invalid_invalid_from_year_month_day() {
         let date = Date::from_year_month_day(1582, 10, 14);
         assert_eq!(date.err(), Some(Error::InvalidDate));
+    }
+
+    #[test]
+    fn is_leap_year() {
+        assert!(Date::from_year_month_day(2000, 1, 1)
+            .unwrap()
+            .is_leap_year());
+        assert!(!Date::from_year_month_day(2001, 1, 1)
+            .unwrap()
+            .is_leap_year());
+        assert!(!Date::from_year_month_day(2002, 1, 1)
+            .unwrap()
+            .is_leap_year());
+        assert!(!Date::from_year_month_day(2003, 1, 1)
+            .unwrap()
+            .is_leap_year());
+        assert!(Date::from_year_month_day(2004, 1, 1)
+            .unwrap()
+            .is_leap_year());
+        assert!(!Date::from_year_month_day(2100, 1, 1)
+            .unwrap()
+            .is_leap_year());
     }
 }
