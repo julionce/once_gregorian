@@ -46,6 +46,13 @@ impl Date {
     pub fn is_leap_year(&self) -> bool {
         (0 == self.year % 4) && (0 != (self.year % 100) || 0 == (self.year % 400))
     }
+
+    pub fn year_days(&self) -> DayOfYear {
+        match self.is_leap_year() {
+            true => 366,
+            false => 365,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -84,5 +91,17 @@ mod tests {
         assert!(!Date::from_year_month_day(2100, 1, 1)
             .unwrap()
             .is_leap_year());
+    }
+
+    #[test]
+    fn year_days() {
+        assert_eq!(
+            Date::from_year_month_day(2000, 1, 1).unwrap().year_days(),
+            366
+        );
+        assert_eq!(
+            Date::from_year_month_day(2001, 1, 1).unwrap().year_days(),
+            365
+        );
     }
 }
