@@ -22,6 +22,9 @@ impl Date {
         day: 15,
     };
 
+    const LEAP_MONTH_DAYS: [u8; 12] = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    const NON_LEAP_MONTH_DAYS: [u8; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
     pub fn from_year_month_day(year: Year, month: Month, day: DayOfMonth) -> Result<Self, Error> {
         let date = Self { year, month, day };
         if date >= Self::FIRST_DATE {
@@ -43,14 +46,32 @@ impl Date {
         self.day
     }
 
+    const fn accumulate_month_days(is_leap_year: bool, month: u8) -> DayOfYear {
+        match month {
+            1 => 31,
+            _ => match is_leap_year {
+                true => {
+                    Self::accumulate_month_days(is_leap_year, month - 1)
+                        + Self::LEAP_MONTH_DAYS[(month - 1) as usize] as u16
+                }
+                false => {
+                    Self::accumulate_month_days(is_leap_year, month - 1)
+                        + Self::NON_LEAP_MONTH_DAYS[(month - 1) as usize] as u16
+                }
+            },
+        }
+    }
+
     pub fn is_leap_year(&self) -> bool {
         (0 == self.year % 4) && (0 != (self.year % 100) || 0 == (self.year % 400))
     }
 
     pub fn year_days(&self) -> DayOfYear {
+        const LEAD_YEAR_DAYS: DayOfYear = Date::accumulate_month_days(true, 12);
+        const NON_LEAD_YEAR_DAYS: DayOfYear = Date::accumulate_month_days(false, 12);
         match self.is_leap_year() {
-            true => 366,
-            false => 365,
+            true => LEAD_YEAR_DAYS,
+            false => NON_LEAD_YEAR_DAYS,
         }
     }
 
