@@ -53,6 +53,18 @@ impl Date {
             false => 365,
         }
     }
+
+    pub fn month_days(&self) -> DayOfMonth {
+        match self.month {
+            1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+            4 | 6 | 9 | 11 => 30,
+            2 => match self.is_leap_year() {
+                true => 29,
+                false => 28,
+            },
+            _ => 0,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -103,5 +115,20 @@ mod tests {
             Date::from_year_month_day(2001, 1, 1).unwrap().year_days(),
             365
         );
+    }
+
+    #[test]
+    fn month_days() {
+        let leap_year_month_days: [u8; 12] = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        for (index, value) in leap_year_month_days.iter().enumerate() {
+            let date = Date::from_year_month_day(2000, (index + 1) as u8, 1).unwrap();
+            assert_eq!(date.month_days(), *value);
+        }
+
+        let non_leap_year_month_days: [u8; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        for (index, value) in non_leap_year_month_days.iter().enumerate() {
+            let date = Date::from_year_month_day(2001, (index + 1) as u8, 1).unwrap();
+            assert_eq!(date.month_days(), *value);
+        }
     }
 }
