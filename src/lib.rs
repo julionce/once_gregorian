@@ -126,6 +126,15 @@ impl<const F: DayOfMonth> GenericYear<F> {
             Month::December => Self::MONTH_DAYS[11],
         }
     }
+
+    const fn accumulate_month_days(month: Month) -> DayOfYear {
+        match month {
+            Month::January => Self::month_days(Month::January) as DayOfYear,
+            m => Self::accumulate_month_days(m.prev()) + Self::month_days(m) as DayOfYear,
+        }
+    }
+
+    const TOTAL_DAYS: DayOfYear = Self::accumulate_month_days(Month::December);
 }
 
 impl<const F: DayOfMonth> const Into<u16> for GenericYear<F> {
@@ -207,6 +216,13 @@ impl Year {
     pub const fn month_days(&self, month: Month) -> DayOfMonth {
         self.inner.month_days(month)
     }
+
+    pub const fn total_days(&self) -> DayOfYear {
+        match self.inner {
+            InternalYear::LeapYear(_) => LeapYear::TOTAL_DAYS,
+            InternalYear::NonLeapYear(_) => NonLeapYear::TOTAL_DAYS,
+        }
+    }
 }
 
 impl const Into<u16> for Year {
@@ -243,9 +259,6 @@ impl Date {
         day: 15,
     };
 
-    const LEAP_MONTH_DAYS: [u8; 12] = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    const NON_LEAP_MONTH_DAYS: [u8; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
     pub fn from_year_month_day(year: u16, month: Month, day: DayOfMonth) -> Result<Self, Error> {
         let date = Self {
             year: year.into(),
@@ -271,33 +284,12 @@ impl Date {
         self.day
     }
 
-    const fn accumulate_month_days(is_leap_year: bool, month: u8) -> DayOfYear {
-        match month {
-            1 => 31,
-            _ => match is_leap_year {
-                true => {
-                    Self::accumulate_month_days(is_leap_year, month - 1)
-                        + Self::LEAP_MONTH_DAYS[(month - 1) as usize] as u16
-                }
-                false => {
-                    Self::accumulate_month_days(is_leap_year, month - 1)
-                        + Self::NON_LEAP_MONTH_DAYS[(month - 1) as usize] as u16
-                }
-            },
-        }
-    }
-
     pub fn is_leap_year(&self) -> bool {
         self.year.is_leap()
     }
 
     pub fn year_days(&self) -> DayOfYear {
-        const LEAD_YEAR_DAYS: DayOfYear = Date::accumulate_month_days(true, 12);
-        const NON_LEAD_YEAR_DAYS: DayOfYear = Date::accumulate_month_days(false, 12);
-        match self.is_leap_year() {
-            true => LEAD_YEAR_DAYS,
-            false => NON_LEAD_YEAR_DAYS,
-        }
+        self.year.total_days()
     }
 
     pub fn month_days(&self) -> DayOfMonth {
