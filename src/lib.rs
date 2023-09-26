@@ -61,7 +61,7 @@ impl Month {
     }
 }
 
-impl Into<u8> for Month {
+impl const Into<u8> for Month {
     fn into(self) -> u8 {
         match self {
             Month::January => 1,
@@ -80,7 +80,7 @@ impl Into<u8> for Month {
     }
 }
 
-impl TryInto<Month> for u8 {
+impl const TryInto<Month> for u8 {
     type Error = Error;
 
     fn try_into(self) -> Result<Month, Self::Error> {
@@ -176,13 +176,13 @@ impl const Into<u16> for InternalYear {
     }
 }
 
-impl PartialEq for InternalYear {
+impl const PartialEq for InternalYear {
     fn eq(&self, other: &Self) -> bool {
         <InternalYear as Into<u16>>::into(*self) == <InternalYear as Into<u16>>::into(*other)
     }
 }
 
-impl PartialOrd for InternalYear {
+impl const PartialOrd for InternalYear {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         let lhs: u16 = (*self).into();
         let rhs: u16 = (*other).into();
@@ -272,27 +272,27 @@ impl Date {
         }
     }
 
-    pub fn year(&self) -> Year {
+    pub const fn year(&self) -> Year {
         self.year
     }
 
-    pub fn month(&self) -> Month {
+    pub const fn month(&self) -> Month {
         self.month
     }
 
-    pub fn day_of_month(&self) -> DayOfMonth {
+    pub const fn day_of_month(&self) -> DayOfMonth {
         self.day
     }
 
-    pub fn is_leap_year(&self) -> bool {
+    pub const fn is_leap_year(&self) -> bool {
         self.year.is_leap()
     }
 
-    pub fn year_days(&self) -> DayOfYear {
+    pub const fn year_days(&self) -> DayOfYear {
         self.year.total_days()
     }
 
-    pub fn month_days(&self) -> DayOfMonth {
+    pub const fn month_days(&self) -> DayOfMonth {
         self.year.month_days(self.month)
     }
 }
