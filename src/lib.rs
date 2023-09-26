@@ -25,6 +25,42 @@ pub enum Month {
     December,
 }
 
+impl Month {
+    pub const fn next(&self) -> Self {
+        match self {
+            Self::January => Self::February,
+            Self::February => Self::March,
+            Self::March => Self::April,
+            Self::April => Self::May,
+            Self::May => Self::June,
+            Self::June => Self::July,
+            Self::July => Self::August,
+            Self::August => Self::September,
+            Self::September => Self::October,
+            Self::October => Self::November,
+            Self::November => Self::December,
+            Self::December => Self::January,
+        }
+    }
+
+    pub const fn prev(&self) -> Self {
+        match self {
+            Self::January => Self::December,
+            Self::February => Self::January,
+            Self::March => Self::February,
+            Self::April => Self::March,
+            Self::May => Self::April,
+            Self::June => Self::May,
+            Self::July => Self::June,
+            Self::August => Self::July,
+            Self::September => Self::August,
+            Self::October => Self::September,
+            Self::November => Self::October,
+            Self::December => Self::November,
+        }
+    }
+}
+
 impl Into<u8> for Month {
     fn into(self) -> u8 {
         match self {
