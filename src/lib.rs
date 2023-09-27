@@ -1,5 +1,7 @@
 #![feature(const_trait_impl)]
 
+use std::ops::RangeInclusive;
+
 pub type DayOfMonth = u8;
 pub type DayOfYear = u16;
 
@@ -127,14 +129,25 @@ impl<const F: DayOfMonth> GenericYear<F> {
         }
     }
 
-    const fn accumulate_month_days(month: Month) -> DayOfYear {
+    const fn first_of_month(month: Month) -> DayOfYear {
         match month {
-            Month::January => Self::month_days(Month::January) as DayOfYear,
-            m => Self::accumulate_month_days(m.prev()) + Self::month_days(m) as DayOfYear,
+            Month::January => 1,
+            m => Self::first_of_month(m.prev()) + Self::month_days(m.prev()) as DayOfYear,
         }
     }
 
-    const TOTAL_DAYS: DayOfYear = Self::accumulate_month_days(Month::December);
+    const fn last_of_month(month: Month) -> DayOfYear {
+        match month {
+            Month::January => Self::month_days(Month::January) as DayOfYear,
+            m => Self::last_of_month(m.prev()) + Self::month_days(m) as DayOfYear,
+        }
+    }
+
+    const TOTAL_DAYS: DayOfYear = Self::last_of_month(Month::December);
+
+    const fn range_of_month(month: Month) -> RangeInclusive<DayOfYear> {
+        Self::first_of_month(month)..=Self::last_of_month(month)
+    }
 }
 
 impl<const F: DayOfMonth> const Into<u16> for GenericYear<F> {
