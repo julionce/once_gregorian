@@ -121,12 +121,25 @@ impl const TryInto<Month> for u8 {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct GenericYear<const F: DayOfMonth> {
+struct GenericYear<const LEAP: bool> {
     inner: u16,
 }
 
-impl<const F: DayOfMonth> GenericYear<F> {
-    const MONTH_DAYS: [DayOfMonth; 12] = [31, F, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+impl<const LEAP: bool> GenericYear<LEAP> {
+    const MONTH_DAYS: [DayOfMonth; 12] = [
+        31,
+        if LEAP { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
 
     const fn month_days(month: Month) -> DayOfMonth {
         match month {
@@ -191,25 +204,25 @@ impl<const F: DayOfMonth> GenericYear<F> {
     }
 }
 
-impl<const F: DayOfMonth> const Into<u16> for GenericYear<F> {
+impl<const LEAP: bool> const Into<u16> for GenericYear<LEAP> {
     fn into(self) -> u16 {
         self.inner
     }
 }
 
-impl<const F: DayOfMonth> const Into<GenericYear<F>> for u16 {
-    fn into(self) -> GenericYear<F> {
-        GenericYear::<F> { inner: self }
+impl<const LEAP: bool> const Into<GenericYear<LEAP>> for u16 {
+    fn into(self) -> GenericYear<LEAP> {
+        GenericYear::<LEAP> { inner: self }
     }
 }
 
-type LeapYear = GenericYear<29u8>;
-type NonLeapYear = GenericYear<28u8>;
+type LeapYear = GenericYear<true>;
+type NonLeapYear = GenericYear<false>;
 
 #[derive(Debug, Clone, Copy)]
 enum InternalYear {
-    LeapYear(GenericYear<29u8>),
-    NonLeapYear(GenericYear<28u8>),
+    LeapYear(GenericYear<true>),
+    NonLeapYear(GenericYear<false>),
 }
 
 impl InternalYear {
