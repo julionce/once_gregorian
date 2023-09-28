@@ -10,6 +10,7 @@ pub type DayOfYear = u16;
 pub enum Error {
     InvalidDate,
     InvalidMonthNumber,
+    InvalidDay,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -259,6 +260,21 @@ impl const PartialOrd for InternalYear {
             Some(std::cmp::Ordering::Less)
         } else {
             Some(std::cmp::Ordering::Greater)
+        }
+    }
+}
+
+struct GenericMonthAndDay<const LEAP: bool> {
+    month: Month,
+    day: DayOfMonth,
+}
+
+impl<const LEAP: bool> GenericMonthAndDay<LEAP> {
+    const fn new(month: Month, day: DayOfMonth) -> Result<GenericMonthAndDay<LEAP>, Error> {
+        let month_days = GenericYear::<LEAP>::month_days(month);
+        match day.ge(&1) && day.le(&month_days) {
+            true => Ok(Self { month, day }),
+            false => Err(Error::InvalidDay),
         }
     }
 }
