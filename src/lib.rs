@@ -28,6 +28,21 @@ pub enum Month {
 }
 
 impl Month {
+    const VALUES: [Self; 12] = [
+        Self::January,
+        Self::February,
+        Self::March,
+        Self::April,
+        Self::May,
+        Self::June,
+        Self::July,
+        Self::August,
+        Self::September,
+        Self::October,
+        Self::November,
+        Self::December,
+    ];
+
     pub const fn next(&self) -> Self {
         match self {
             Self::January => Self::February,
