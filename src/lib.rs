@@ -1,4 +1,5 @@
 #![feature(const_trait_impl)]
+#![feature(const_cmp)]
 
 use std::ops::RangeInclusive;
 
@@ -162,6 +163,31 @@ impl<const F: DayOfMonth> GenericYear<F> {
 
     const fn range_of_month(month: Month) -> RangeInclusive<DayOfYear> {
         Self::first_of_month(month)..=Self::last_of_month(month)
+    }
+
+    const fn find_month_helper(day_of_year: DayOfYear, month: Month) -> Option<Month> {
+        let range = Self::range_of_month(month);
+        match day_of_year.ge(range.start()) && day_of_year.le(range.end()) {
+            true => Some(month),
+            false => match month {
+                Month::December => None,
+                _ => Self::find_month_helper(day_of_year, month.next()),
+            },
+        }
+    }
+
+    const fn find_month(day_of_year: DayOfYear) -> Option<Month> {
+        Self::find_month_helper(day_of_year, Month::January)
+    }
+
+    const fn to_month_and_day(day_of_year: DayOfYear) -> Option<(Month, DayOfMonth)> {
+        match Self::find_month(day_of_year) {
+            Some(month) => Some((
+                month,
+                (day_of_year - Self::month_days(month) as DayOfYear) as DayOfMonth,
+            )),
+            None => None,
+        }
     }
 }
 
