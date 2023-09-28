@@ -293,6 +293,27 @@ impl<const LEAP: bool> GenericDayOfYear<LEAP> {
     }
 }
 
+impl<const LEAP: bool> TryInto<GenericDayOfYear<LEAP>> for GenericMonthAndDay<LEAP> {
+    type Error = Error;
+
+    fn try_into(self) -> Result<GenericDayOfYear<LEAP>, Self::Error> {
+        GenericDayOfYear::<LEAP>::new(
+            GenericYear::<LEAP>::first_of_month(self.month) + self.day as DayOfYear,
+        )
+    }
+}
+
+impl<const LEAP: bool> TryInto<GenericMonthAndDay<LEAP>> for GenericDayOfYear<LEAP> {
+    type Error = Error;
+
+    fn try_into(self) -> Result<GenericMonthAndDay<LEAP>, Self::Error> {
+        match GenericYear::<LEAP>::to_month_and_day(self.day_of_year) {
+            Some((month, day)) => Ok(GenericMonthAndDay::<LEAP>::new(month, day)?),
+            None => Err(Error::InvalidDayOfYear),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Year {
     inner: InternalYear,
