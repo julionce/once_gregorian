@@ -11,6 +11,7 @@ pub enum Error {
     InvalidDate,
     InvalidMonthNumber,
     InvalidDay,
+    InvalidDayOfYear,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -275,6 +276,19 @@ impl<const LEAP: bool> GenericMonthAndDay<LEAP> {
         match day.ge(&1) && day.le(&month_days) {
             true => Ok(Self { month, day }),
             false => Err(Error::InvalidDay),
+        }
+    }
+}
+
+struct GenericDayOfYear<const LEAP: bool> {
+    day_of_year: DayOfYear,
+}
+
+impl<const LEAP: bool> GenericDayOfYear<LEAP> {
+    const fn new(day_of_year: DayOfYear) -> Result<GenericDayOfYear<LEAP>, Error> {
+        match day_of_year.ge(&1) && day_of_year.le(&GenericYear::<LEAP>::TOTAL_DAYS) {
+            true => Ok(Self { day_of_year }),
+            false => Err(Error::InvalidDayOfYear),
         }
     }
 }
