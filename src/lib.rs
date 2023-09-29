@@ -1,5 +1,3 @@
-#![feature(const_trait_impl)]
-
 pub type DayOfMonth = u8;
 pub type DayOfYear = u16;
 
@@ -78,7 +76,7 @@ impl Month {
     }
 }
 
-impl const Into<u8> for Month {
+impl Into<u8> for Month {
     fn into(self) -> u8 {
         match self {
             Month::January => 1,
@@ -97,7 +95,7 @@ impl const Into<u8> for Month {
     }
 }
 
-impl const TryInto<Month> for u8 {
+impl TryInto<Month> for u8 {
     type Error = Error;
 
     fn try_into(self) -> Result<Month, Self::Error> {
@@ -126,7 +124,7 @@ mod generic {
 
     #[derive(Debug, Clone, Copy)]
     pub struct Year<const LEAP: bool> {
-        inner: u16,
+        pub inner: u16,
     }
 
     impl<const LEAP: bool> Year<LEAP> {
@@ -210,13 +208,13 @@ mod generic {
         }
     }
 
-    impl<const LEAP: bool> const Into<u16> for Year<LEAP> {
+    impl<const LEAP: bool> Into<u16> for Year<LEAP> {
         fn into(self) -> u16 {
             self.inner
         }
     }
 
-    impl<const LEAP: bool> const Into<Year<LEAP>> for u16 {
+    impl<const LEAP: bool> Into<Year<LEAP>> for u16 {
         fn into(self) -> Year<LEAP> {
             Year::<LEAP> { inner: self }
         }
@@ -225,7 +223,7 @@ mod generic {
     pub struct DateBuilder<const LEAP: bool> {}
 
     impl<const LEAP: bool> DateBuilder<LEAP> {
-        pub const fn from_year_month_day(
+        pub fn from_year_month_day(
             year: Year<LEAP>,
             month: Month,
             day: DayOfMonth,
@@ -241,7 +239,7 @@ mod generic {
             }
         }
 
-        pub const fn from_year_day_of_year(
+        pub fn from_year_day_of_year(
             year: Year<LEAP>,
             day_of_year: crate::DayOfYear,
         ) -> Result<Date, Error> {
@@ -324,7 +322,7 @@ impl InternalYear {
     }
 }
 
-impl const Into<u16> for InternalYear {
+impl Into<u16> for InternalYear {
     fn into(self) -> u16 {
         match self {
             Self::LeapYear(y) => y.into(),
@@ -333,13 +331,13 @@ impl const Into<u16> for InternalYear {
     }
 }
 
-impl const PartialEq for InternalYear {
+impl PartialEq for InternalYear {
     fn eq(&self, other: &Self) -> bool {
         <InternalYear as Into<u16>>::into(*self) == <InternalYear as Into<u16>>::into(*other)
     }
 }
 
-impl const PartialOrd for InternalYear {
+impl PartialOrd for InternalYear {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         let lhs: u16 = (*self).into();
         let rhs: u16 = (*other).into();
@@ -359,7 +357,7 @@ pub struct Year {
 }
 
 impl Year {
-    pub const fn new(inner: u16) -> Self {
+    pub fn new(inner: u16) -> Self {
         inner.into()
     }
 
@@ -382,13 +380,13 @@ impl Year {
     }
 }
 
-impl const Into<u16> for Year {
+impl Into<u16> for Year {
     fn into(self) -> u16 {
         self.inner.into()
     }
 }
 
-impl const Into<Year> for u16 {
+impl Into<Year> for u16 {
     fn into(self) -> Year {
         if (0 == self % 4) && (0 != (self % 100) || 0 == (self % 400)) {
             Year {
@@ -411,7 +409,9 @@ pub struct Date {
 
 impl Date {
     const FIRST_DATE: Date = Date {
-        year: Year::new(1582),
+        year: Year {
+            inner: InternalYear::NonLeapYear(generic::Year::<false> { inner: 1582 }),
+        },
         month: Month::October,
         day: 15,
     };
