@@ -1,8 +1,6 @@
 #![feature(const_trait_impl)]
 #![feature(const_cmp)]
 
-use std::ops::RangeInclusive;
-
 pub type DayOfMonth = u8;
 pub type DayOfYear = u16;
 
@@ -122,109 +120,174 @@ impl const TryInto<Month> for u8 {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct GenericYear<const LEAP: bool> {
-    inner: u16,
+mod generic {
+
+    use crate::{DayOfMonth, Error, Month};
+    use std::ops::RangeInclusive;
+
+    #[derive(Debug, Clone, Copy)]
+    pub struct Year<const LEAP: bool> {
+        inner: u16,
+    }
+
+    impl<const LEAP: bool> Year<LEAP> {
+        const MONTH_DAYS: [DayOfMonth; 12] = [
+            31,
+            if LEAP { 29 } else { 28 },
+            31,
+            30,
+            31,
+            30,
+            31,
+            31,
+            30,
+            31,
+            30,
+            31,
+        ];
+
+        pub const fn month_days(month: Month) -> DayOfMonth {
+            match month {
+                Month::January => Self::MONTH_DAYS[0],
+                Month::February => Self::MONTH_DAYS[1],
+                Month::March => Self::MONTH_DAYS[2],
+                Month::April => Self::MONTH_DAYS[3],
+                Month::May => Self::MONTH_DAYS[4],
+                Month::June => Self::MONTH_DAYS[5],
+                Month::July => Self::MONTH_DAYS[6],
+                Month::August => Self::MONTH_DAYS[7],
+                Month::September => Self::MONTH_DAYS[8],
+                Month::October => Self::MONTH_DAYS[9],
+                Month::November => Self::MONTH_DAYS[10],
+                Month::December => Self::MONTH_DAYS[11],
+            }
+        }
+
+        const fn first_of_month(month: Month) -> crate::DayOfYear {
+            match month {
+                Month::January => 1,
+                m => {
+                    Self::first_of_month(m.prev()) + Self::month_days(m.prev()) as crate::DayOfYear
+                }
+            }
+        }
+
+        const fn last_of_month(month: Month) -> crate::DayOfYear {
+            match month {
+                Month::January => Self::month_days(Month::January) as crate::DayOfYear,
+                m => Self::last_of_month(m.prev()) + Self::month_days(m) as crate::DayOfYear,
+            }
+        }
+
+        pub const TOTAL_DAYS: crate::DayOfYear = Self::last_of_month(Month::December);
+
+        const fn range_of_month(month: Month) -> RangeInclusive<crate::DayOfYear> {
+            Self::first_of_month(month)..=Self::last_of_month(month)
+        }
+
+        const fn find_month_helper(day_of_year: crate::DayOfYear, month: Month) -> Option<Month> {
+            let range = Self::range_of_month(month);
+            match day_of_year.ge(range.start()) && day_of_year.le(range.end()) {
+                true => Some(month),
+                false => match month {
+                    Month::December => None,
+                    _ => Self::find_month_helper(day_of_year, month.next()),
+                },
+            }
+        }
+
+        const fn find_month(day_of_year: crate::DayOfYear) -> Option<Month> {
+            Self::find_month_helper(day_of_year, Month::January)
+        }
+
+        const fn to_month_and_day(day_of_year: crate::DayOfYear) -> Option<(Month, DayOfMonth)> {
+            match Self::find_month(day_of_year) {
+                Some(month) => Some((
+                    month,
+                    (day_of_year - Self::month_days(month) as crate::DayOfYear) as DayOfMonth,
+                )),
+                None => None,
+            }
+        }
+    }
+
+    impl<const LEAP: bool> const Into<u16> for Year<LEAP> {
+        fn into(self) -> u16 {
+            self.inner
+        }
+    }
+
+    impl<const LEAP: bool> const Into<Year<LEAP>> for u16 {
+        fn into(self) -> Year<LEAP> {
+            Year::<LEAP> { inner: self }
+        }
+    }
+
+    pub struct MonthAndDay<const LEAP: bool> {
+        month: Month,
+        day: DayOfMonth,
+    }
+
+    impl<const LEAP: bool> MonthAndDay<LEAP> {
+        pub const fn new(month: Month, day: DayOfMonth) -> Result<MonthAndDay<LEAP>, Error> {
+            let month_days = Year::<LEAP>::month_days(month);
+            match day.ge(&1) && day.le(&month_days) {
+                true => Ok(Self { month, day }),
+                false => Err(Error::InvalidDay),
+            }
+        }
+
+        pub const fn month(&self) -> Month {
+            self.month
+        }
+
+        pub const fn day(&self) -> DayOfMonth {
+            self.day
+        }
+    }
+
+    pub struct DayOfYear<const LEAP: bool> {
+        day_of_year: crate::DayOfYear,
+    }
+
+    impl<const LEAP: bool> DayOfYear<LEAP> {
+        pub const fn new(day_of_year: crate::DayOfYear) -> Result<DayOfYear<LEAP>, Error> {
+            match day_of_year.ge(&1) && day_of_year.le(&Year::<LEAP>::TOTAL_DAYS) {
+                true => Ok(Self { day_of_year }),
+                false => Err(Error::InvalidDayOfYear),
+            }
+        }
+    }
+
+    impl<const LEAP: bool> TryInto<DayOfYear<LEAP>> for MonthAndDay<LEAP> {
+        type Error = Error;
+
+        fn try_into(self) -> Result<DayOfYear<LEAP>, Self::Error> {
+            DayOfYear::<LEAP>::new(
+                Year::<LEAP>::first_of_month(self.month) + self.day as crate::DayOfYear,
+            )
+        }
+    }
+
+    impl<const LEAP: bool> TryInto<MonthAndDay<LEAP>> for DayOfYear<LEAP> {
+        type Error = Error;
+
+        fn try_into(self) -> Result<MonthAndDay<LEAP>, Self::Error> {
+            match Year::<LEAP>::to_month_and_day(self.day_of_year) {
+                Some((month, day)) => Ok(MonthAndDay::<LEAP>::new(month, day)?),
+                None => Err(Error::InvalidDayOfYear),
+            }
+        }
+    }
 }
 
-impl<const LEAP: bool> GenericYear<LEAP> {
-    const MONTH_DAYS: [DayOfMonth; 12] = [
-        31,
-        if LEAP { 29 } else { 28 },
-        31,
-        30,
-        31,
-        30,
-        31,
-        31,
-        30,
-        31,
-        30,
-        31,
-    ];
-
-    const fn month_days(month: Month) -> DayOfMonth {
-        match month {
-            Month::January => Self::MONTH_DAYS[0],
-            Month::February => Self::MONTH_DAYS[1],
-            Month::March => Self::MONTH_DAYS[2],
-            Month::April => Self::MONTH_DAYS[3],
-            Month::May => Self::MONTH_DAYS[4],
-            Month::June => Self::MONTH_DAYS[5],
-            Month::July => Self::MONTH_DAYS[6],
-            Month::August => Self::MONTH_DAYS[7],
-            Month::September => Self::MONTH_DAYS[8],
-            Month::October => Self::MONTH_DAYS[9],
-            Month::November => Self::MONTH_DAYS[10],
-            Month::December => Self::MONTH_DAYS[11],
-        }
-    }
-
-    const fn first_of_month(month: Month) -> DayOfYear {
-        match month {
-            Month::January => 1,
-            m => Self::first_of_month(m.prev()) + Self::month_days(m.prev()) as DayOfYear,
-        }
-    }
-
-    const fn last_of_month(month: Month) -> DayOfYear {
-        match month {
-            Month::January => Self::month_days(Month::January) as DayOfYear,
-            m => Self::last_of_month(m.prev()) + Self::month_days(m) as DayOfYear,
-        }
-    }
-
-    const TOTAL_DAYS: DayOfYear = Self::last_of_month(Month::December);
-
-    const fn range_of_month(month: Month) -> RangeInclusive<DayOfYear> {
-        Self::first_of_month(month)..=Self::last_of_month(month)
-    }
-
-    const fn find_month_helper(day_of_year: DayOfYear, month: Month) -> Option<Month> {
-        let range = Self::range_of_month(month);
-        match day_of_year.ge(range.start()) && day_of_year.le(range.end()) {
-            true => Some(month),
-            false => match month {
-                Month::December => None,
-                _ => Self::find_month_helper(day_of_year, month.next()),
-            },
-        }
-    }
-
-    const fn find_month(day_of_year: DayOfYear) -> Option<Month> {
-        Self::find_month_helper(day_of_year, Month::January)
-    }
-
-    const fn to_month_and_day(day_of_year: DayOfYear) -> Option<(Month, DayOfMonth)> {
-        match Self::find_month(day_of_year) {
-            Some(month) => Some((
-                month,
-                (day_of_year - Self::month_days(month) as DayOfYear) as DayOfMonth,
-            )),
-            None => None,
-        }
-    }
-}
-
-impl<const LEAP: bool> const Into<u16> for GenericYear<LEAP> {
-    fn into(self) -> u16 {
-        self.inner
-    }
-}
-
-impl<const LEAP: bool> const Into<GenericYear<LEAP>> for u16 {
-    fn into(self) -> GenericYear<LEAP> {
-        GenericYear::<LEAP> { inner: self }
-    }
-}
-
-type LeapYear = GenericYear<true>;
-type NonLeapYear = GenericYear<false>;
+type LeapYear = generic::Year<true>;
+type NonLeapYear = generic::Year<false>;
 
 #[derive(Debug, Clone, Copy)]
 enum InternalYear {
-    LeapYear(GenericYear<true>),
-    NonLeapYear(GenericYear<false>),
+    LeapYear(generic::Year<true>),
+    NonLeapYear(generic::Year<false>),
 }
 
 impl InternalYear {
@@ -261,55 +324,6 @@ impl const PartialOrd for InternalYear {
             Some(std::cmp::Ordering::Less)
         } else {
             Some(std::cmp::Ordering::Greater)
-        }
-    }
-}
-
-struct GenericMonthAndDay<const LEAP: bool> {
-    month: Month,
-    day: DayOfMonth,
-}
-
-impl<const LEAP: bool> GenericMonthAndDay<LEAP> {
-    const fn new(month: Month, day: DayOfMonth) -> Result<GenericMonthAndDay<LEAP>, Error> {
-        let month_days = GenericYear::<LEAP>::month_days(month);
-        match day.ge(&1) && day.le(&month_days) {
-            true => Ok(Self { month, day }),
-            false => Err(Error::InvalidDay),
-        }
-    }
-}
-
-struct GenericDayOfYear<const LEAP: bool> {
-    day_of_year: DayOfYear,
-}
-
-impl<const LEAP: bool> GenericDayOfYear<LEAP> {
-    const fn new(day_of_year: DayOfYear) -> Result<GenericDayOfYear<LEAP>, Error> {
-        match day_of_year.ge(&1) && day_of_year.le(&GenericYear::<LEAP>::TOTAL_DAYS) {
-            true => Ok(Self { day_of_year }),
-            false => Err(Error::InvalidDayOfYear),
-        }
-    }
-}
-
-impl<const LEAP: bool> TryInto<GenericDayOfYear<LEAP>> for GenericMonthAndDay<LEAP> {
-    type Error = Error;
-
-    fn try_into(self) -> Result<GenericDayOfYear<LEAP>, Self::Error> {
-        GenericDayOfYear::<LEAP>::new(
-            GenericYear::<LEAP>::first_of_month(self.month) + self.day as DayOfYear,
-        )
-    }
-}
-
-impl<const LEAP: bool> TryInto<GenericMonthAndDay<LEAP>> for GenericDayOfYear<LEAP> {
-    type Error = Error;
-
-    fn try_into(self) -> Result<GenericMonthAndDay<LEAP>, Self::Error> {
-        match GenericYear::<LEAP>::to_month_and_day(self.day_of_year) {
-            Some((month, day)) => Ok(GenericMonthAndDay::<LEAP>::new(month, day)?),
-            None => Err(Error::InvalidDayOfYear),
         }
     }
 }
