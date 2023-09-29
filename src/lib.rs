@@ -122,7 +122,7 @@ impl const TryInto<Month> for u8 {
 
 mod generic {
 
-    use crate::{DayOfMonth, Error, Month};
+    use crate::{Date, DayOfMonth, Error, Month};
     use std::ops::RangeInclusive;
 
     #[derive(Debug, Clone, Copy)]
@@ -220,6 +220,26 @@ mod generic {
     impl<const LEAP: bool> const Into<Year<LEAP>> for u16 {
         fn into(self) -> Year<LEAP> {
             Year::<LEAP> { inner: self }
+        }
+    }
+
+    pub struct DateBuilder<const LEAP: bool> {}
+
+    impl<const LEAP: bool> DateBuilder<LEAP> {
+        pub const fn from_year_month_day(
+            year: Year<LEAP>,
+            month: Month,
+            day: DayOfMonth,
+        ) -> Result<Date, Error> {
+            let month_days = Year::<LEAP>::month_days(month);
+            match day.ge(&1) && day.le(&month_days) {
+                true => Ok(Date {
+                    year: crate::Year::new(year.into()),
+                    month,
+                    day,
+                }),
+                false => Err(Error::InvalidDay),
+            }
         }
     }
 
@@ -392,10 +412,14 @@ impl Date {
     };
 
     pub fn from_year_month_day(year: u16, month: Month, day: DayOfMonth) -> Result<Self, Error> {
-        let date = Self {
-            year: year.into(),
-            month,
-            day,
+        let year: Year = year.into();
+        let date = match year.inner {
+            InternalYear::LeapYear(y) => {
+                generic::DateBuilder::<true>::from_year_month_day(y, month, day)?
+            }
+            InternalYear::NonLeapYear(y) => {
+                generic::DateBuilder::<false>::from_year_month_day(y, month, day)?
+            }
         };
         if date >= Self::FIRST_DATE {
             Ok(date)
