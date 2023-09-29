@@ -269,14 +269,6 @@ mod generic {
                 false => Err(Error::InvalidDay),
             }
         }
-
-        pub const fn month(&self) -> Month {
-            self.month
-        }
-
-        pub const fn day(&self) -> DayOfMonth {
-            self.day
-        }
     }
 
     pub struct DayOfYear<const LEAP: bool> {
