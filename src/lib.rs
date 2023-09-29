@@ -29,7 +29,7 @@ pub enum Month {
 }
 
 impl Month {
-    const VALUES: [Self; 12] = [
+    pub const VALUES: [Self; 12] = [
         Self::January,
         Self::February,
         Self::March,
