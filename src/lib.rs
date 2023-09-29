@@ -241,6 +241,20 @@ mod generic {
                 false => Err(Error::InvalidDay),
             }
         }
+
+        pub const fn from_year_day_of_year(
+            year: Year<LEAP>,
+            day_of_year: crate::DayOfYear,
+        ) -> Result<Date, Error> {
+            match Year::<LEAP>::to_month_and_day(day_of_year) {
+                Some((month, day)) => Ok(Date {
+                    year: crate::Year::new(year.into()),
+                    month,
+                    day,
+                }),
+                None => Err(Error::InvalidDayOfYear),
+            }
+        }
     }
 
     pub struct MonthAndDay<const LEAP: bool> {
@@ -419,6 +433,23 @@ impl Date {
             }
             InternalYear::NonLeapYear(y) => {
                 generic::DateBuilder::<false>::from_year_month_day(y, month, day)?
+            }
+        };
+        if date >= Self::FIRST_DATE {
+            Ok(date)
+        } else {
+            Err(Error::InvalidDate)
+        }
+    }
+
+    pub fn from_year_day_of_year(year: u16, day_of_year: DayOfYear) -> Result<Self, Error> {
+        let year: Year = year.into();
+        let date = match year.inner {
+            InternalYear::LeapYear(y) => {
+                generic::DateBuilder::<true>::from_year_day_of_year(y, day_of_year)?
+            }
+            InternalYear::NonLeapYear(y) => {
+                generic::DateBuilder::<false>::from_year_day_of_year(y, day_of_year)?
             }
         };
         if date >= Self::FIRST_DATE {
