@@ -1,5 +1,4 @@
 #![feature(const_trait_impl)]
-#![feature(const_cmp)]
 
 pub type DayOfMonth = u8;
 pub type DayOfYear = u16;
@@ -187,7 +186,7 @@ mod generic {
 
         const fn find_month_helper(day_of_year: crate::DayOfYear, month: Month) -> Option<Month> {
             let range = Self::range_of_month(month);
-            match day_of_year.ge(range.start()) && day_of_year.le(range.end()) {
+            match *range.start() <= day_of_year && *range.end() >= day_of_year {
                 true => Some(month),
                 false => match month {
                     Month::December => None,
@@ -232,7 +231,7 @@ mod generic {
             day: DayOfMonth,
         ) -> Result<Date, Error> {
             let month_days = Year::<LEAP>::month_days(month);
-            match day.ge(&1) && day.le(&month_days) {
+            match 1 <= day && month_days >= day {
                 true => Ok(Date {
                     year: crate::Year::new(year.into()),
                     month,
@@ -265,7 +264,7 @@ mod generic {
     impl<const LEAP: bool> MonthAndDay<LEAP> {
         pub const fn new(month: Month, day: DayOfMonth) -> Result<MonthAndDay<LEAP>, Error> {
             let month_days = Year::<LEAP>::month_days(month);
-            match day.ge(&1) && day.le(&month_days) {
+            match 1 <= day && month_days >= day {
                 true => Ok(Self { month, day }),
                 false => Err(Error::InvalidDay),
             }
@@ -286,7 +285,7 @@ mod generic {
 
     impl<const LEAP: bool> DayOfYear<LEAP> {
         pub const fn new(day_of_year: crate::DayOfYear) -> Result<DayOfYear<LEAP>, Error> {
-            match day_of_year.ge(&1) && day_of_year.le(&Year::<LEAP>::TOTAL_DAYS) {
+            match 1 <= day_of_year && Year::<LEAP>::TOTAL_DAYS >= day_of_year {
                 true => Ok(Self { day_of_year }),
                 false => Err(Error::InvalidDayOfYear),
             }
