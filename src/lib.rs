@@ -423,7 +423,20 @@ impl DateBuilder {
         self
     }
 
-    pub fn build(&self) -> Result<Date, Error> {
+    // TODO: replace by const trait impl when it is available
+    const fn is_before_first_date(year: u16, month: Month, day: Day) -> bool {
+        (year < 1582)
+            || (year == 1582
+                && ((match month {
+                    Month::October | Month::November | Month::December => false,
+                    _ => true,
+                }) || (match month {
+                    Month::October => true,
+                    _ => false,
+                } && day < FIRST_DATE.day)))
+    }
+
+    pub const fn build(&self) -> Result<Date, Error> {
         let year = Year::new(self.year);
         let (month, day) = match self.date {
             InternalDateBuilder::MonthAndDay(month, day) => {
@@ -441,10 +454,10 @@ impl DateBuilder {
             }
         };
         let date = Date { year, month, day };
-        if date >= FIRST_DATE {
-            Ok(date)
-        } else {
+        if Self::is_before_first_date(self.year, month, day) {
             Err(Error::InvalidDate)
+        } else {
+            Ok(date)
         }
     }
 }
