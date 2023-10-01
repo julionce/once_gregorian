@@ -202,7 +202,9 @@ mod generic {
             Self::find_month_helper(day_of_year, Month::January)
         }
 
-        const fn to_month_and_day(day_of_year: crate::DayOfYear) -> Option<(Month, Day)> {
+        pub const fn day_of_year_to_month_and_day(
+            day_of_year: crate::DayOfYear,
+        ) -> Option<(Month, Day)> {
             match Self::find_month(day_of_year) {
                 Some(month) => Some((
                     month,
@@ -239,7 +241,7 @@ mod generic {
         pub const fn from_day_of_year(
             day_of_year: crate::DayOfYear,
         ) -> Result<crate::MonthAndDay, Error> {
-            match Year::<LEAP>::to_month_and_day(day_of_year) {
+            match Year::<LEAP>::day_of_year_to_month_and_day(day_of_year) {
                 Some((month, day)) => Ok(crate::MonthAndDay { month, day }),
                 None => Err(Error::InvalidDayOfYear),
             }
@@ -288,7 +290,7 @@ mod generic {
         type Error = Error;
 
         fn try_into(self) -> Result<MonthAndDay<LEAP>, Self::Error> {
-            match Year::<LEAP>::to_month_and_day(self.day_of_year) {
+            match Year::<LEAP>::day_of_year_to_month_and_day(self.day_of_year) {
                 Some((month, day)) => Ok(MonthAndDay::<LEAP>::new(month, day)?),
                 None => Err(Error::InvalidDayOfYear),
             }
@@ -310,6 +312,13 @@ impl InternalYear {
         match self {
             InternalYear::LeapYear(_) => LeapYear::month_days(month),
             InternalYear::NonLeapYear(_) => NonLeapYear::month_days(month),
+        }
+    }
+
+    const fn day_of_year_to_month_and_day(&self, day_of_year: DayOfYear) -> Option<(Month, Day)> {
+        match self {
+            InternalYear::LeapYear(_) => LeapYear::day_of_year_to_month_and_day(day_of_year),
+            InternalYear::NonLeapYear(_) => NonLeapYear::day_of_year_to_month_and_day(day_of_year),
         }
     }
 }
@@ -369,6 +378,10 @@ impl Year {
             InternalYear::LeapYear(_) => LeapYear::TOTAL_DAYS,
             InternalYear::NonLeapYear(_) => NonLeapYear::TOTAL_DAYS,
         }
+    }
+
+    const fn day_of_year_to_month_and_day(&self, day_of_year: DayOfYear) -> Option<(Month, Day)> {
+        self.inner.day_of_year_to_month_and_day(day_of_year)
     }
 }
 
@@ -487,29 +500,22 @@ impl DateBuilder {
 
     pub fn build(&self) -> Result<Date, Error> {
         let year: Year = self.year.into();
-        let month_and_day = match year.inner {
-            InternalYear::LeapYear(_) => match self.date {
-                InternalDateBuilder::MonthAndDay(month, day) => {
-                    generic::MonthAndDayBuilder::<true>::from_month_day(month, day)?
+        let (month, day) = match self.date {
+            InternalDateBuilder::MonthAndDay(month, day) => {
+                let total_month_days = year.month_days(month);
+                match 1 <= day && total_month_days >= day {
+                    true => (month, day),
+                    false => return Err(Error::InvalidDay),
                 }
-                InternalDateBuilder::DayOfYear(day_of_year) => {
-                    generic::MonthAndDayBuilder::<true>::from_day_of_year(day_of_year)?
+            }
+            InternalDateBuilder::DayOfYear(day_of_year) => {
+                match year.day_of_year_to_month_and_day(day_of_year) {
+                    Some((month, day)) => (month, day),
+                    None => return Err(Error::InvalidDayOfYear),
                 }
-            },
-            InternalYear::NonLeapYear(_) => match self.date {
-                InternalDateBuilder::MonthAndDay(month, day) => {
-                    generic::MonthAndDayBuilder::<false>::from_month_day(month, day)?
-                }
-                InternalDateBuilder::DayOfYear(day_of_year) => {
-                    generic::MonthAndDayBuilder::<false>::from_day_of_year(day_of_year)?
-                }
-            },
+            }
         };
-        let date = Date {
-            year,
-            month: month_and_day.month,
-            day: month_and_day.day,
-        };
+        let date = Date { year, month, day };
         if date >= Date::FIRST_DATE {
             Ok(date)
         } else {
