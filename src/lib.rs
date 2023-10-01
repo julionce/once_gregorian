@@ -124,7 +124,7 @@ struct MonthAndDay {
 
 mod generic {
 
-    use crate::{Date, Day, Error, Month};
+    use crate::{Day, Error, Month};
     use std::ops::RangeInclusive;
 
     #[derive(Debug, Clone, Copy)]
@@ -408,50 +408,6 @@ impl Date {
         day: 15,
     };
 
-    pub fn from_year_month_day(year: u16, month: Month, day: Day) -> Result<Self, Error> {
-        let year: Year = year.into();
-        let month_and_day = match year.inner {
-            InternalYear::LeapYear(_) => {
-                generic::MonthAndDayBuilder::<true>::from_month_day(month, day)?
-            }
-            InternalYear::NonLeapYear(_) => {
-                generic::MonthAndDayBuilder::<false>::from_month_day(month, day)?
-            }
-        };
-        let date = Self {
-            year,
-            month: month_and_day.month,
-            day: month_and_day.day,
-        };
-        if date >= Self::FIRST_DATE {
-            Ok(date)
-        } else {
-            Err(Error::InvalidDate)
-        }
-    }
-
-    pub fn from_year_day_of_year(year: u16, day_of_year: DayOfYear) -> Result<Self, Error> {
-        let year: Year = year.into();
-        let month_and_day = match year.inner {
-            InternalYear::LeapYear(_) => {
-                generic::MonthAndDayBuilder::<true>::from_day_of_year(day_of_year)?
-            }
-            InternalYear::NonLeapYear(_) => {
-                generic::MonthAndDayBuilder::<false>::from_day_of_year(day_of_year)?
-            }
-        };
-        let date = Self {
-            year,
-            month: month_and_day.month,
-            day: month_and_day.day,
-        };
-        if date >= Self::FIRST_DATE {
-            Ok(date)
-        } else {
-            Err(Error::InvalidDate)
-        }
-    }
-
     pub const fn year(&self) -> Year {
         self.year
     }
@@ -477,40 +433,157 @@ impl Date {
     }
 }
 
+enum InternalDateBuilder {
+    MonthAndDay(Month, Day),
+    DayOfYear(DayOfYear),
+}
+
+pub struct DateBuilder {
+    year: u16,
+    date: InternalDateBuilder,
+}
+
+impl DateBuilder {
+    pub const fn new() -> Self {
+        DateBuilder {
+            year: 2000,
+            date: InternalDateBuilder::MonthAndDay(Month::January, 1),
+        }
+    }
+
+    pub const fn year(mut self, year: u16) -> Self {
+        self.year = year;
+        self
+    }
+
+    pub const fn month(mut self, month: Month) -> Self {
+        match self.date {
+            InternalDateBuilder::MonthAndDay(_, day) => {
+                self.date = InternalDateBuilder::MonthAndDay(month, day)
+            }
+            InternalDateBuilder::DayOfYear(_) => {
+                self.date = InternalDateBuilder::MonthAndDay(month, 1)
+            }
+        }
+        self
+    }
+
+    pub const fn day(mut self, day: Day) -> Self {
+        match self.date {
+            InternalDateBuilder::MonthAndDay(month, _) => {
+                self.date = InternalDateBuilder::MonthAndDay(month, day)
+            }
+            InternalDateBuilder::DayOfYear(_) => {
+                self.date = InternalDateBuilder::MonthAndDay(Month::January, day)
+            }
+        }
+        self
+    }
+
+    pub const fn day_of_year(mut self, day_of_year: DayOfYear) -> Self {
+        self.date = InternalDateBuilder::DayOfYear(day_of_year);
+        self
+    }
+
+    pub fn build(&self) -> Result<Date, Error> {
+        let year: Year = self.year.into();
+        let month_and_day = match year.inner {
+            InternalYear::LeapYear(_) => match self.date {
+                InternalDateBuilder::MonthAndDay(month, day) => {
+                    generic::MonthAndDayBuilder::<true>::from_month_day(month, day)?
+                }
+                InternalDateBuilder::DayOfYear(day_of_year) => {
+                    generic::MonthAndDayBuilder::<true>::from_day_of_year(day_of_year)?
+                }
+            },
+            InternalYear::NonLeapYear(_) => match self.date {
+                InternalDateBuilder::MonthAndDay(month, day) => {
+                    generic::MonthAndDayBuilder::<false>::from_month_day(month, day)?
+                }
+                InternalDateBuilder::DayOfYear(day_of_year) => {
+                    generic::MonthAndDayBuilder::<false>::from_day_of_year(day_of_year)?
+                }
+            },
+        };
+        let date = Date {
+            year,
+            month: month_and_day.month,
+            day: month_and_day.day,
+        };
+        if date >= Date::FIRST_DATE {
+            Ok(date)
+        } else {
+            Err(Error::InvalidDate)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn create_valid_date_from_year_month_day() {
-        let date = Date::from_year_month_day(1582, Month::October, 15);
+    fn build_first_date() {
+        let date = DateBuilder::new()
+            .year(1582)
+            .month(Month::October)
+            .day(15)
+            .build();
         assert!(date.is_ok());
     }
 
     #[test]
-    fn create_invalid_invalid_from_year_month_day() {
-        let date = Date::from_year_month_day(1582, Month::October, 14);
+    fn build_date_previous_to_first_date() {
+        let date = DateBuilder::new()
+            .year(1582)
+            .month(Month::October)
+            .day(14)
+            .build();
         assert_eq!(date.err(), Some(Error::InvalidDate));
     }
 
     #[test]
     fn is_leap_year() {
-        assert!(Date::from_year_month_day(2000, Month::January, 1)
+        assert!(DateBuilder::new()
+            .year(2000)
+            .month(Month::January)
+            .day(1)
+            .build()
             .unwrap()
             .is_leap_year());
-        assert!(!Date::from_year_month_day(2001, Month::January, 1)
+        assert!(!DateBuilder::new()
+            .year(2001)
+            .month(Month::January)
+            .day(1)
+            .build()
             .unwrap()
             .is_leap_year());
-        assert!(!Date::from_year_month_day(2002, Month::January, 1)
+        assert!(!DateBuilder::new()
+            .year(2002)
+            .month(Month::January)
+            .day(1)
+            .build()
             .unwrap()
             .is_leap_year());
-        assert!(!Date::from_year_month_day(2003, Month::January, 1)
+        assert!(!DateBuilder::new()
+            .year(2003)
+            .month(Month::January)
+            .day(1)
+            .build()
             .unwrap()
             .is_leap_year());
-        assert!(Date::from_year_month_day(2004, Month::January, 1)
+        assert!(DateBuilder::new()
+            .year(2004)
+            .month(Month::January)
+            .day(1)
+            .build()
             .unwrap()
             .is_leap_year());
-        assert!(!Date::from_year_month_day(2100, Month::January, 1)
+        assert!(!DateBuilder::new()
+            .year(2100)
+            .month(Month::January)
+            .day(1)
+            .build()
             .unwrap()
             .is_leap_year());
     }
@@ -518,13 +591,21 @@ mod tests {
     #[test]
     fn year_days() {
         assert_eq!(
-            Date::from_year_month_day(2000, Month::January, 1)
+            DateBuilder::new()
+                .year(2000)
+                .month(Month::January)
+                .day(1)
+                .build()
                 .unwrap()
                 .year_days(),
             366
         );
         assert_eq!(
-            Date::from_year_month_day(2001, Month::January, 1)
+            DateBuilder::new()
+                .year(2001)
+                .month(Month::January)
+                .day(1)
+                .build()
                 .unwrap()
                 .year_days(),
             365
