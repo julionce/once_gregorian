@@ -228,8 +228,8 @@ type NonLeapYear = generic::Year<false>;
 
 #[derive(Debug, Clone, Copy)]
 enum InternalYear {
-    LeapYear(generic::Year<true>),
-    NonLeapYear(generic::Year<false>),
+    LeapYear(LeapYear),
+    NonLeapYear(NonLeapYear),
 }
 
 impl InternalYear {
@@ -338,14 +338,6 @@ pub struct Date {
 }
 
 impl Date {
-    const FIRST_DATE: Date = Date {
-        year: Year {
-            inner: InternalYear::NonLeapYear(generic::Year::<false> { inner: 1582 }),
-        },
-        month: Month::October,
-        day: 15,
-    };
-
     pub const fn year(&self) -> Year {
         self.year
     }
@@ -370,6 +362,14 @@ impl Date {
         self.year.month_days(self.month)
     }
 }
+
+pub const FIRST_DATE: Date = Date {
+    year: Year {
+        inner: InternalYear::NonLeapYear(generic::Year::<false> { inner: 1582 }),
+    },
+    month: Month::October,
+    day: 15,
+};
 
 enum InternalDateBuilder {
     MonthAndDay(Month, Day),
@@ -441,7 +441,7 @@ impl DateBuilder {
             }
         };
         let date = Date { year, month, day };
-        if date >= Date::FIRST_DATE {
+        if date >= FIRST_DATE {
             Ok(date)
         } else {
             Err(Error::InvalidDate)
