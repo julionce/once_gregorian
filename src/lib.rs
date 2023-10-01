@@ -283,8 +283,16 @@ pub struct Year {
 }
 
 impl Year {
-    pub fn new(inner: u16) -> Self {
-        inner.into()
+    pub const fn new(year: u16) -> Self {
+        if (0 == year % 4) && (0 != (year % 100) || 0 == (year % 400)) {
+            Year {
+                inner: InternalYear::LeapYear(LeapYear { inner: year }),
+            }
+        } else {
+            Year {
+                inner: InternalYear::NonLeapYear(NonLeapYear { inner: year }),
+            }
+        }
     }
 
     pub const fn is_leap(&self) -> bool {
@@ -318,15 +326,7 @@ impl Into<u16> for Year {
 
 impl Into<Year> for u16 {
     fn into(self) -> Year {
-        if (0 == self % 4) && (0 != (self % 100) || 0 == (self % 400)) {
-            Year {
-                inner: InternalYear::LeapYear(self.into()),
-            }
-        } else {
-            Year {
-                inner: InternalYear::NonLeapYear(self.into()),
-            }
-        }
+        Year::new(self)
     }
 }
 
@@ -424,7 +424,7 @@ impl DateBuilder {
     }
 
     pub fn build(&self) -> Result<Date, Error> {
-        let year: Year = self.year.into();
+        let year = Year::new(self.year);
         let (month, day) = match self.date {
             InternalDateBuilder::MonthAndDay(month, day) => {
                 let total_month_days = year.month_days(month);
